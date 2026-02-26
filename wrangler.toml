@@ -1,0 +1,21 @@
+name = "lovense-bridge"
+main = "src/index.ts"
+compatibility_date = "2024-12-01"
+compatibility_flags = ["nodejs_compat"]
+
+# Change this to your own identifier
+[vars]
+LOVENSE_UID = "default"
+ALLOWED_ORIGINS = ""
+
+# Secrets (set via wrangler secret put):
+# LOVENSE_TOKEN - Your Lovense developer token
+# API_SECRET    - Bearer token for REST API authentication
+
+[[durable_objects.bindings]]
+name = "LOVENSE_CLOUD"
+class_name = "LovenseCloud"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["LovenseCloud"]
