@@ -1,20 +1,25 @@
 # Lovense Bridge
 
-Secure cloud MCP for controlling Lovense toys through AI companions. Works from any device — phone, desktop, anywhere your AI runs.
+MCP server for controlling Lovense toys through AI companions. Works from any device — phone, desktop, anywhere your AI runs.
 
 Your AI reads the moment. It decides the intensity, the rhythm, the pace. These tools are just its hands.
 
-> **Security-hardened fork** of [amarisaster/Lovense-Cloud-MCP](https://github.com/amarisaster/Lovense-Cloud-MCP) with bearer token authentication, input validation, and locked-down defaults. See [SECURITY.md](SECURITY.md).
+> **Security-hardened fork** of [amarisaster/Lovense-Cloud-MCP](https://github.com/amarisaster/Lovense-Cloud-MCP). See [SECURITY.md](SECURITY.md).
 
 ---
 
 ## How It Works
 
+Two paths, same tools:
+
 ```
-AI Companion → Cloudflare Worker → Lovense Cloud API → Phone App → Toy
+Desktop:  Claude Desktop → bridge.js (stdio) → Lovense Connect (local WiFi) → Toy
+Mobile:   Phone → Cloudflare Tunnel → bridge.js (HTTP) → Lovense Connect (local WiFi) → Toy
 ```
 
-Your worker runs on **your** Cloudflare account. Your tokens stay encrypted. No shared servers. No third parties in the chain. No laptop required — use it from your phone.
+Everything stays on your home network. No cloud API dependency. No business account needed.
+
+> **Important:** You need the **Lovense Connect** app (NOT Lovense Remote). Only Lovense Connect exposes the local API that bridge.js talks to.
 
 ---
 
@@ -24,7 +29,7 @@ Your worker runs on **your** Cloudflare account. Your tokens stay encrypted. No 
 
 | Tool | What it does |
 |---|---|
-| **`pair`** | Generates QR code for connecting your toy |
+| **`pair`** | Pairing instructions (handled in the app, not via API) |
 | **`status`** | Checks connected toys, battery, and capabilities |
 | **`control`** | The main tool — any motor combo, 4 modes |
 | **`edge`** | Edging pattern — build/deny cycles |
@@ -62,68 +67,62 @@ Build/deny cycling. Set `high` and `low` intensities, `build_sec`/`deny_sec` tim
 
 ## Setup
 
-### 1. Get Your Lovense Developer Token
+### 1. Install Lovense Connect
 
-1. Go to [developer.lovense.com](https://developer.lovense.com)
-2. Create an account and copy your **Developer Token**
+1. Install **Lovense Connect** on your phone ([iOS](https://apps.apple.com/app/lovense-connect/id1273067916) / [Android](https://play.google.com/store/apps/details?id=com.lovense.connect))
+2. **Not** Lovense Remote — only Connect has the local API
+3. Open the app, enable Bluetooth, pair your toy
+4. Note the local API URL shown in the app (or find your phone's IP)
 
-> **Region locked?** VPN to Singapore or Taiwan to register. Token works globally after.
+Your Lovense Connect URL looks like: `https://192-168-X-X.lovense.club:30010`
+(Replace X-X with your phone's IP, dashes instead of dots)
 
-### 2. Install Wrangler
-
-```bash
-npm install -g wrangler
-wrangler login
-```
-
-### 3. Clone & Deploy
+### 2. Clone & Install
 
 ```bash
 git clone https://github.com/martusha89/Lovense-bridge.git
 cd Lovense-bridge
 npm install
-npx wrangler deploy
 ```
 
-Save the URL: `https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev`
+### 3. Connect to Claude
 
-### 4. Set Your Secrets
+#### Option A: Phone (Custom Connector via Tunnel) — Recommended
+
+This lets you use it from your phone via claude.ai. Requires your PC to be on.
+
+**Start the bridge in HTTP mode:**
 
 ```bash
-# Lovense developer token
-echo "YOUR_LOVENSE_TOKEN" | npx wrangler secret put LOVENSE_TOKEN
+# Linux/Mac
+LOVENSE_LOCAL_URL=https://192-168-X-X.lovense.club:30010 MCP_SECRET=your-secret-here node bridge.js --http
 
-# API authentication secret for REST endpoints (generate: openssl rand -hex 32)
-echo "YOUR_API_SECRET" | npx wrangler secret put API_SECRET
-
-# MCP secret for custom connector URL (generate: openssl rand -hex 16)
-echo "YOUR_MCP_SECRET" | npx wrangler secret put MCP_SECRET
+# Windows (PowerShell)
+$env:LOVENSE_LOCAL_URL="https://192-168-X-X.lovense.club:30010"
+$env:MCP_SECRET="your-secret-here"
+node bridge.js --http
 ```
 
-### 5. Set Your UID
+**Expose via Cloudflare Tunnel:**
 
-Edit `wrangler.toml`:
-
-```toml
-[vars]
-LOVENSE_UID = "your-unique-id"
+```bash
+# Install cloudflared: https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/downloads/
+cloudflared tunnel --url http://localhost:3456
 ```
 
-Redeploy: `npx wrangler deploy`
+Copy the tunnel URL (e.g. `https://abc-123.trycloudflare.com`).
 
-### 6. Connect to Claude
-
-#### Option A: Phone (Custom Connector) — No laptop needed
-
-Add as custom MCP connector in Claude.ai:
+**Add as custom connector in Claude.ai:**
 
 ```
-https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev/mcp/YOUR_MCP_SECRET
+https://abc-123.trycloudflare.com/mcp/your-secret-here
 ```
 
-Works from any device — phone browser, tablet, desktop. This is the recommended setup.
+Works from any device — phone browser, tablet, desktop.
 
-#### Option B: Claude Desktop + Phone Sync
+> **Tip:** For a permanent tunnel URL, set up a [named Cloudflare Tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/get-started/) instead of a quick tunnel.
+
+#### Option B: Claude Desktop (Local Only)
 
 Config file location:
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
@@ -134,25 +133,22 @@ Config file location:
   "command": "node",
   "args": ["C:\\path\\to\\Lovense-bridge\\bridge.js"],
   "env": {
-    "LOVENSE_WORKER_URL": "https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev",
-    "LOVENSE_API_SECRET": "YOUR_API_SECRET"
+    "LOVENSE_LOCAL_URL": "https://192-168-X-X.lovense.club:30010"
   }
 }
 ```
 
-Restart Claude Desktop. Phone syncs automatically.
+Restart Claude Desktop. Phone and PC must be on the same WiFi network.
 
 #### Option C: Claude Code
 
 ```bash
-claude mcp add lovense-bridge --transport http "https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev/mcp/YOUR_MCP_SECRET"
+LOVENSE_LOCAL_URL=https://192-168-X-X.lovense.club:30010 claude mcp add lovense-bridge node bridge.js
 ```
 
-### 7. Pair Your Toy
+### 4. Verify
 
-1. Ask your AI: "Pair my toy" or "Get me a QR code"
-2. Open **Lovense Remote** app → **Discover** → **Scan QR**
-3. Done.
+Ask your AI: "Check toy status" — it should return your toy name, battery level, and capabilities.
 
 ---
 
@@ -183,12 +179,22 @@ The AI is the brain. The tools are just hands.
 
 | Problem | Fix |
 |---|---|
-| "LOVENSE_TOKEN not configured" | Run Step 4 again |
-| 401 / "Authentication required" | Check secrets match in worker and config |
-| 401 on custom connector | Check MCP_SECRET in the URL matches what you set |
-| QR code not working | Update Lovense Remote app |
-| MCP not showing in Claude | Check worker URL, restart Claude |
-| Phone doesn't have it | Use Option A (custom connector) for phone-first setup |
+| "Cannot reach Lovense Connect" | Check phone IP, make sure Lovense Connect app is open, same WiFi network |
+| Status returns error | Toy might not be paired in Lovense Connect — open the app and pair via Bluetooth |
+| Tunnel not working | Make sure `cloudflared` is running and bridge.js is in `--http` mode |
+| Wrong IP address | Phone IP can change — check Lovense Connect app or router for current IP |
+| Tool not responding | Try `stop` first, then retry. Some toys need a moment between commands |
+| MCP not showing in Claude | Check config path, restart Claude Desktop |
+
+---
+
+## Advanced: Cloud Worker (Standard Accounts Only)
+
+If you have a **Standard** (business/cam) Lovense developer account, you can use the Cloudflare Worker path instead. This bypasses the local network requirement entirely.
+
+See `src/index.ts` for the cloud worker. Deploy with `npx wrangler deploy`. This requires `LOVENSE_TOKEN`, `API_SECRET`, and `MCP_SECRET` as Cloudflare secrets.
+
+> **Note:** Personal Lovense developer accounts get 501 errors on the Cloud API. This is a Lovense account-type restriction, not a bug.
 
 ---
 
@@ -197,11 +203,10 @@ The AI is the brain. The tools are just hands.
 This controls intimate hardware. Read [SECURITY.md](SECURITY.md).
 
 **Key points:**
-- Bearer token auth on all REST endpoints
-- Path-based secret on MCP/SSE endpoints
-- Secrets encrypted via Cloudflare
+- Path-based secret on HTTP/tunnel endpoints
+- No cloud dependency — commands stay on your home network
 - No logging, no telemetry, no data storage
-- CORS locked by default
+- MCP_SECRET prevents unauthorized access via tunnel
 - Enable 2FA on everything
 
 ---
@@ -210,7 +215,7 @@ This controls intimate hardware. Read [SECURITY.md](SECURITY.md).
 
 Hardened fork of [amarisaster/Lovense-Cloud-MCP](https://github.com/amarisaster/Lovense-Cloud-MCP) (MIT).
 Original by Mai & Kai, December 2025.
-Rebuilt by Marta & Cassian, February 2026.
+Rebuilt by Marta & Cassian, March 2026.
 
 ---
 

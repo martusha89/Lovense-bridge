@@ -1,10 +1,12 @@
 {
   "name": "lovense-bridge",
-  "version": "2.0.0",
-  "description": "Secure cloud MCP bridge for Lovense toy control via AI companions",
+  "version": "3.0.0",
+  "description": "Local MCP server for Lovense toy control via AI companions",
   "main": "src/index.ts",
   "type": "module",
   "scripts": {
+    "start": "node bridge.js",
+    "start:http": "node bridge.js --http",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev"
   },
@@ -12,6 +14,7 @@
     "@modelcontextprotocol/sdk": "^1.25.1",
     "agents": "^0.2.35",
     "ai": "^6.0.105",
+    "express": "^4.22.1",
     "zod": "^3.22.0"
   },
   "devDependencies": {
