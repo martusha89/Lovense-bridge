@@ -1,6 +1,6 @@
 {
   "name": "lovense-bridge",
-  "version": "1.0.0",
+  "version": "2.0.0",
   "description": "Secure cloud MCP bridge for Lovense toy control via AI companions",
   "main": "src/index.ts",
   "type": "module",
@@ -11,6 +11,7 @@
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.1",
     "agents": "^0.2.35",
+    "ai": "^6.0.105",
     "zod": "^3.22.0"
   },
   "devDependencies": {

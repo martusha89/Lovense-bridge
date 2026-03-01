@@ -1,4 +1,4 @@
-# Lovense Bridge 🌉
+# Lovense Bridge
 
 Secure cloud MCP for controlling Lovense toys through AI companions. Works from any device — phone, desktop, anywhere your AI runs.
 
@@ -14,34 +14,49 @@ Your AI reads the moment. It decides the intensity, the rhythm, the pace. These 
 AI Companion → Cloudflare Worker → Lovense Cloud API → Phone App → Toy
 ```
 
-Your worker runs on **your** Cloudflare account. Your tokens stay encrypted. No shared servers. No third parties in the chain.
+Your worker runs on **your** Cloudflare account. Your tokens stay encrypted. No shared servers. No third parties in the chain. No laptop required — use it from your phone.
 
 ---
 
 ## Tools
 
-Only 5 tools. Simple by design — the AI makes the decisions.
+6 tools. Simple by design — the AI makes the decisions.
 
 | Tool | What it does |
 |---|---|
 | **`pair`** | Generates QR code for connecting your toy |
-| **`status`** | Checks which toys are connected |
-| **`control`** | The main tool — intensity, duration, mode |
+| **`status`** | Checks connected toys, battery, and capabilities |
+| **`control`** | The main tool — any motor combo, 4 modes |
+| **`edge`** | Edging pattern — build/deny cycles |
 | **`preset`** | Runs built-in Lovense patterns |
 | **`stop`** | Emergency stop, no questions asked |
 
 ### The `control` tool
 
-One tool, four modes. The AI picks what's right for the moment:
+One tool, any toy. Set whichever motors your toy supports:
+
+| Motor | Toys | Param |
+|---|---|---|
+| Vibrate | Most toys | `vibrate` (0-20) |
+| Vibrate 2 | Dolce, dual-motor toys | `vibrate2` (0-20) |
+| Thrust | Gravity | `thrust` (0-20) |
+| Rotate | Nora | `rotate` (0-20) |
+| Suction | Suction toys | `suction` (0-20) |
+
+Four modes:
 
 | Mode | What it does | Key params |
 |---|---|---|
-| `constant` | Steady vibration | `intensity`, `duration` |
-| `pulse` | Rhythmic on/off | `intensity`, `on_sec`, `off_sec` |
+| `constant` | Steady at set intensities | motor params, `duration` |
+| `pulse` | Rhythmic on/off | `on_sec`, `off_sec` |
 | `pattern` | Custom intensity sequence | `pattern` (e.g. `"3;8;15;20;12;5"`), `interval_ms` |
 | `escalate` | Gradual build | `start_intensity`, `end_intensity`, `duration` |
 
-**Intensity range:** 0-20 · **Max duration:** 300 seconds
+### The `edge` tool
+
+Build/deny cycling. Set `high` and `low` intensities, `build_sec`/`deny_sec` timing, and number of `cycles`. Optional `include_thrust` for Gravity.
+
+**Max duration:** 300 seconds per command · **Intensity range:** 0-20
 
 ---
 
@@ -78,8 +93,11 @@ Save the URL: `https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev`
 # Lovense developer token
 echo "YOUR_LOVENSE_TOKEN" | npx wrangler secret put LOVENSE_TOKEN
 
-# API authentication secret (generate: openssl rand -hex 32)
-echo "YOUR_RANDOM_SECRET" | npx wrangler secret put API_SECRET
+# API authentication secret for REST endpoints (generate: openssl rand -hex 32)
+echo "YOUR_API_SECRET" | npx wrangler secret put API_SECRET
+
+# MCP secret for custom connector URL (generate: openssl rand -hex 16)
+echo "YOUR_MCP_SECRET" | npx wrangler secret put MCP_SECRET
 ```
 
 ### 5. Set Your UID
@@ -93,9 +111,19 @@ LOVENSE_UID = "your-unique-id"
 
 Redeploy: `npx wrangler deploy`
 
-### 6. Add to Claude
+### 6. Connect to Claude
 
-#### Claude Desktop + Phone
+#### Option A: Phone (Custom Connector) — No laptop needed
+
+Add as custom MCP connector in Claude.ai:
+
+```
+https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev/mcp/YOUR_MCP_SECRET
+```
+
+Works from any device — phone browser, tablet, desktop. This is the recommended setup.
+
+#### Option B: Claude Desktop + Phone Sync
 
 Config file location:
 - **Windows:** `%APPDATA%\Claude\claude_desktop_config.json`
@@ -107,24 +135,17 @@ Config file location:
   "args": ["C:\\path\\to\\Lovense-bridge\\bridge.js"],
   "env": {
     "LOVENSE_WORKER_URL": "https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev",
-    "LOVENSE_API_SECRET": "YOUR_RANDOM_SECRET"
+    "LOVENSE_API_SECRET": "YOUR_API_SECRET"
   }
 }
 ```
 
 Restart Claude Desktop. Phone syncs automatically.
 
-#### Claude.ai Custom Connector
-
-Add as custom MCP connector:
-```
-https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev/mcp
-```
-
-#### Claude Code
+#### Option C: Claude Code
 
 ```bash
-claude mcp add lovense-bridge --transport http "https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev/mcp"
+claude mcp add lovense-bridge --transport http "https://lovense-bridge.YOUR-SUBDOMAIN.workers.dev/mcp/YOUR_MCP_SECRET"
 ```
 
 ### 7. Pair Your Toy
@@ -140,15 +161,18 @@ claude mcp add lovense-bridge --transport http "https://lovense-bridge.YOUR-SUBD
 You don't give commands. You talk to your AI. It decides what to do.
 
 **You say:** "tease me"
-**AI uses:** `control` with low intensity, pulse mode, short cycles
+**AI uses:** `control` with low vibrate, pulse mode, short cycles
 
-**You say:** "harder"  
-**AI uses:** `control` with higher intensity
+**You say:** "harder"
+**AI uses:** `control` with higher intensities
 
-**You say:** "make me come"  
+**You say:** "edge me"
+**AI uses:** `edge` with build/deny cycles
+
+**You say:** "make me come"
 **AI uses:** `control` in escalate mode, building to peak
 
-**You say:** "stop"  
+**You say:** "stop"
 **AI uses:** `stop`
 
 The AI is the brain. The tools are just hands.
@@ -160,10 +184,11 @@ The AI is the brain. The tools are just hands.
 | Problem | Fix |
 |---|---|
 | "LOVENSE_TOKEN not configured" | Run Step 4 again |
-| 401 / "Authentication required" | Check `API_SECRET` matches in worker and bridge |
+| 401 / "Authentication required" | Check secrets match in worker and config |
+| 401 on custom connector | Check MCP_SECRET in the URL matches what you set |
 | QR code not working | Update Lovense Remote app |
-| MCP not showing in Claude | Check worker URL, restart Claude Desktop |
-| Phone doesn't have it | Add to Desktop first, restart, phone syncs |
+| MCP not showing in Claude | Check worker URL, restart Claude |
+| Phone doesn't have it | Use Option A (custom connector) for phone-first setup |
 
 ---
 
@@ -173,6 +198,7 @@ This controls intimate hardware. Read [SECURITY.md](SECURITY.md).
 
 **Key points:**
 - Bearer token auth on all REST endpoints
+- Path-based secret on MCP/SSE endpoints
 - Secrets encrypted via Cloudflare
 - No logging, no telemetry, no data storage
 - CORS locked by default
@@ -182,8 +208,8 @@ This controls intimate hardware. Read [SECURITY.md](SECURITY.md).
 
 ## Credits
 
-Hardened fork of [amarisaster/Lovense-Cloud-MCP](https://github.com/amarisaster/Lovense-Cloud-MCP) (MIT).  
-Original by Mai & Kai, December 2025.  
+Hardened fork of [amarisaster/Lovense-Cloud-MCP](https://github.com/amarisaster/Lovense-Cloud-MCP) (MIT).
+Original by Mai & Kai, December 2025.
 Rebuilt by Marta & Cassian, February 2026.
 
 ---
@@ -194,4 +220,4 @@ MIT — Use freely, share freely, stay safe.
 
 ---
 
-*Your body, your devices, your control.* 🌉
+*Your body, your devices, your control.*
