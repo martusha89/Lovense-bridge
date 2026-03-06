@@ -28,7 +28,7 @@ Before we start, make sure you have:
 - **A phone** with the **Lovense Remote** app installed
 - **A Lovense toy**, paired with the app
 - **A Claude account** at [claude.ai](https://claude.ai)
-- **WiFi** — your phone and PC must be on the same WiFi network
+- **WiFi** — your phone and PC **must be on the same WiFi network** (this is non-negotiable — the bridge won't work otherwise)
 
 **Time needed:** About 20–30 minutes the first time. After that, starting it up takes about 30 seconds.
 
@@ -116,7 +116,7 @@ brew install ngrok
 
 ### Connect ngrok to Your Account
 
-1. Go to [https://dashboard.ngrok.com/get-started/your-authtoken](https://dashboard.ngrok.com/get-started/your-authtoken)
+1. Go to your **ngrok auth token page**: [https://dashboard.ngrok.com/get-started/your-authtoken](https://dashboard.ngrok.com/get-started/your-authtoken)
 2. You'll see a long string of letters and numbers — that's your **auth token**
 3. Click the **copy** button next to it
 4. In your terminal, type this (paste your token where it says YOUR_TOKEN):
@@ -126,6 +126,8 @@ ngrok config add-authtoken YOUR_TOKEN
 ```
 
 Press Enter. You should see "Authtoken saved."
+
+> 🔗 **Bookmark that auth token page!** You'll need it if you ever reconfigure ngrok: [https://dashboard.ngrok.com/get-started/your-authtoken](https://dashboard.ngrok.com/get-started/your-authtoken)
 
 ---
 
@@ -139,6 +141,18 @@ You probably already have this if you own a Lovense toy, but let's make sure it'
 2. Make sure **Bluetooth is on** and your toy is connected (paired) in the app
 3. Now we need to turn on **Game Mode** — this is what lets your PC talk to the app
 
+### ⚠️ Before You Continue: Same WiFi Check
+
+**Your phone and your PC must be connected to the exact same WiFi network.** Not mobile data on the phone and WiFi on the PC — the same WiFi on both.
+
+How to check:
+- **iPhone:** Settings → Wi-Fi — the network name is shown at the top
+- **Android:** Settings → Network & Internet → Wi-Fi (or swipe down and long-press the WiFi icon)
+- **PC (Windows):** Click the WiFi icon in the taskbar — it shows which network you're connected to
+- **PC (Mac):** Click the WiFi icon in the menu bar
+
+If they show different network names, connect them both to the same one before continuing.
+
 ### Enabling Game Mode
 
 1. In Lovense Remote, tap the **menu** (☰) or go to **Settings**
@@ -147,6 +161,37 @@ You probably already have this if you own a Lovense toy, but let's make sure it'
 4. The screen will show you two important things:
    - An **IP address** (looks like `192.168.1.50`)
    - A **Port number** (usually `30010` or `30011` — **write down which one it shows**)
+
+### Finding Your Phone's IP Address
+
+The Game Mode screen usually shows the IP address. If it doesn't, or if you need to double-check, here's how to find it:
+
+- **iPhone:** Settings → Wi-Fi → tap the **(i)** icon next to your connected network → look for "IP Address"
+- **Android:** Settings → Network & Internet → Wi-Fi → tap your connected network → look for "IP address" (the exact path varies by phone brand, but it's always in your WiFi connection details)
+
+### Optional but Recommended: Set a Static IP
+
+Your phone's IP address can change every time it reconnects to WiFi. When that happens, the bridge stops working and you have to update your config file. Setting a static IP means it stays the same every time — set it once, never think about it again.
+
+**iPhone:**
+1. Settings → Wi-Fi → tap the **(i)** next to your network
+2. Tap **Configure IP**
+3. Change from **Automatic** to **Manual**
+4. Enter your current IP address (the one you just wrote down)
+5. Subnet Mask: `255.255.255.0`
+6. Router: your router's IP (usually `192.168.1.1` or `192.168.0.1`)
+7. Save
+
+**Android:**
+1. Settings → Wi-Fi → long-press your connected network → **Modify Network**
+2. Tap **Advanced Options** (or **IP Settings**)
+3. Change from **DHCP** to **Static**
+4. Enter the same IP address you just wrote down
+5. Gateway: your router's IP (usually `192.168.1.1` or `192.168.0.1`)
+6. DNS: `8.8.8.8`
+7. Save
+
+> **Why do this?** Without a static IP, your phone gets a new IP address every now and then. When that happens, you'd need to update the `.env` file and restart the bridge. A static IP means your setup just works every time.
 
 ### Build Your Lovense URL
 
@@ -158,8 +203,6 @@ Take the IP address and replace the dots with dashes. Then add the port at the e
 - Your URL: `https://192-168-1-50.lovense.club:30011`
 
 **Write this URL down or keep it on screen — you'll need it in the next step.**
-
-> ⚠️ **Important:** The IP address can change if you restart your phone or router. If things stop working later, come back and check the Game Mode screen for the new IP.
 
 ---
 
@@ -268,6 +311,14 @@ To save: Press **Ctrl + O**, then **Enter**, then **Ctrl + X** to exit.
 
 This is the exciting part. One command starts the bridge and the tunnel.
 
+**Before you run this, check all four:**
+- ✅ Lovense Remote is **open** on your phone (not just installed — actually open and running)
+- ✅ Game Mode is **ON**
+- ✅ Your toy is **connected** in the app
+- ✅ Phone and PC are on the **same WiFi**
+
+> ⚠️ **The Lovense Remote app must stay open on your phone the entire time you're using the bridge.** If you switch to another app, lock your phone, or the app goes to sleep, the connection will drop and the bridge won't be able to reach the toy. Keep the app in the foreground, or make sure it's allowed to run in the background in your phone's settings.
+
 In your terminal (still in the Lovense-bridge folder), type:
 
 ```
@@ -298,8 +349,8 @@ https://abc123-45-67-89-10.ngrok-free.app/mcp/my-secret-word
 |---|---|
 | "LOVENSE_LOCAL_URL not set" | Your `.env` file is missing or in the wrong place. Make sure it's inside the Lovense-bridge folder |
 | "ngrok not found" | ngrok isn't installed. Go back to Part 2 |
-| "ngrok took too long to start" | Run `ngrok config add-authtoken YOUR_TOKEN` again (Part 2) |
-| "Cannot reach Lovense" | Make sure Lovense Remote is open on your phone with Game Mode on, and both devices are on the same WiFi |
+| "ngrok took too long to start" | Run `ngrok config add-authtoken YOUR_TOKEN` again (Part 2). Get your token at: https://dashboard.ngrok.com/get-started/your-authtoken |
+| "Cannot reach Lovense" | Is Lovense Remote **open** on your phone? Game Mode on? Phone and PC on the **same WiFi**? |
 
 ---
 
@@ -351,11 +402,12 @@ The AI decides the intensity, the rhythm, the pattern. You just tell it what you
 
 ## Starting Up Next Time
 
-After the first setup, you only need to do three things each time:
+After the first setup, here's what you do each time:
 
-1. Open Lovense Remote on your phone → make sure Game Mode is on and your toy is connected
-2. Open a terminal on your PC, navigate to the folder, and run `node launch.js`
-3. Copy the new URL and update your connector in Claude settings (the URL changes each time on the free ngrok plan)
+1. Open Lovense Remote on your phone → Game Mode ON → toy connected → **keep the app open**
+2. Make sure phone and PC are on the **same WiFi**
+3. Open a terminal on your PC, navigate to the folder, and run `node launch.js`
+4. Copy the new URL and update your connector in Claude settings (the URL changes each time on the free ngrok plan)
 
 That's it. The whole startup takes about 30 seconds once you know what you're doing.
 
@@ -366,13 +418,14 @@ That's it. The whole startup takes about 30 seconds once you know what you're do
 ## Quick Reference: Starting a Session
 
 ```
-1.  Phone: Open Lovense Remote → Game Mode ON → toy connected
-2.  PC:    Open terminal
-3.  PC:    cd C:\Users\YourName\Downloads\Lovense-bridge-main
-4.  PC:    node launch.js
-5.  Phone: Claude Settings → Connectors → update URL
-6.  Phone: New chat → "Check toy status"
-7.  Go. 🔥
+1.  Phone: Open Lovense Remote → Game Mode ON → toy connected → KEEP APP OPEN
+2.  Check: Phone and PC on the same WiFi? ✓
+3.  PC:    Open terminal
+4.  PC:    cd C:\Users\YourName\Downloads\Lovense-bridge-main
+5.  PC:    node launch.js
+6.  Phone: Claude Settings → Connectors → update URL
+7.  Phone: New chat → "Check toy status"
+8.  Go. 🔥
 ```
 
 ---
@@ -381,15 +434,17 @@ That's it. The whole startup takes about 30 seconds once you know what you're do
 
 | Problem | What to do |
 |---|---|
-| "Cannot reach Lovense" | Is Lovense Remote open with Game Mode on? Are phone and PC on the same WiFi? |
+| "Cannot reach Lovense" | Is Lovense Remote **open** with Game Mode on? Are phone and PC on the **same WiFi**? |
 | Tools appear but don't respond | Remove connector, re-add it, start a **new** chat |
 | "Command not found: node" | Node.js isn't installed — go back to Part 1 |
 | "Command not found: ngrok" | ngrok isn't installed — go back to Part 2 |
 | URL stopped working | The ngrok URL changes every time. Run `node launch.js` again and update the connector |
 | Toy doesn't respond | Check battery. Check Bluetooth connection in Lovense Remote |
-| IP address changed | Check the Game Mode screen again for the new IP and update your `.env` file |
+| IP address changed | Check the Game Mode screen again for the new IP and update your `.env` file. Consider setting a static IP (see Part 3) |
 | Port 3456 already in use | You might already have the bridge running. Close all terminal windows and try again |
 | Claude says "Lovense Connect" | Ignore that — Claude is confused. You're using **Lovense Remote**, and that's correct |
+| Connection drops randomly | Make sure Lovense Remote stays **open** on your phone — don't switch away from it or let the phone lock |
+| Can't find your phone's IP | See "Finding Your Phone's IP Address" in Part 3 |
 
 ---
 
@@ -404,6 +459,20 @@ This is intimate hardware, so let's be clear about safety:
 - **You're always in control.** Say "stop" and everything stops immediately. Close the terminal window and the connection is severed entirely.
 
 Keep your secret word private. Don't share the connector URL with anyone.
+
+---
+
+## Important Links
+
+| What | URL |
+|---|---|
+| **The Bridge (GitHub)** | https://github.com/martusha89/Lovense-bridge |
+| **Node.js Download** | https://nodejs.org |
+| **ngrok Download** | https://ngrok.com/download |
+| **ngrok Auth Token** | https://dashboard.ngrok.com/get-started/your-authtoken |
+| **Claude** | https://claude.ai |
+| **Lovense Remote (iOS)** | Search "Lovense Remote" in the App Store |
+| **Lovense Remote (Android)** | Search "Lovense Remote" in Google Play |
 
 ---
 
@@ -422,6 +491,7 @@ Because jargon is annoying:
 | **Game Mode** | A feature in Lovense Remote that opens up a local connection for apps to control your toy |
 | **`.env` file** | A simple text file that stores your settings (URL, password, port) |
 | **Bridge** | The software that translates between Claude and your Lovense toy |
+| **Static IP** | An IP address that doesn't change — set this on your phone so the bridge config stays stable |
 
 ---
 
