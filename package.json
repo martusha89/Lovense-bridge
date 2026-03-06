@@ -7,12 +7,13 @@
   "scripts": {
     "start": "node bridge.js",
     "start:http": "node bridge.js --http",
+    "launch": "node launch.js",
     "deploy": "wrangler deploy",
     "dev": "wrangler dev"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.25.1",
-    "agents": "^0.2.35",
+    "agents": "^0.6.0",
     "ai": "^6.0.105",
     "express": "^4.22.1",
     "zod": "^3.22.0"

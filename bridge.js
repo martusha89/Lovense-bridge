@@ -3,12 +3,12 @@
 /**
  * Lovense Bridge v3 — Local MCP Server
  *
- * Talks directly to Lovense Connect's local API on your home network.
+ * Talks directly to Lovense Remote's local API on your home network.
  * No cloud dependency. No business account needed.
  *
  * Two modes:
  *   --stdio  (default) Claude Desktop, Claude Code
- *   --http   Mobile via Cloudflare Tunnel (custom connector)
+ *   --http   Mobile via ngrok tunnel (custom connector)
  *
  * 6 tools: pair, status, control, edge, preset, stop.
  * Universal toy support — any motor combination.
@@ -29,8 +29,9 @@ const HTTP_MODE = process.argv.includes('--http');
 
 if (!LOCAL_URL) {
   console.error('ERROR: LOVENSE_LOCAL_URL not set');
-  console.error('Set it to your Lovense Connect local API, e.g.:');
-  console.error('  export LOVENSE_LOCAL_URL=https://192-168-2-16.lovense.club:30010');
+  console.error('Set it to your Lovense Remote Game Mode URL, e.g.:');
+  console.error('  export LOVENSE_LOCAL_URL=https://192-168-1-50.lovense.club:30011');
+  console.error('Check the Game Mode screen in Lovense Remote for your IP and SSL port.');
   process.exit(1);
 }
 
@@ -38,10 +39,15 @@ if (!LOCAL_URL) {
 
 async function lovenseGet(endpoint) {
   try {
-    const res = await fetch(`${LOCAL_URL}/${endpoint}`);
+    // Lovense Remote uses POST /command for everything, including GetToys
+    const res = await fetch(`${LOCAL_URL}/command`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ command: endpoint, apiVer: 1 })
+    });
     return await res.json();
   } catch (err) {
-    return { error: `Cannot reach Lovense Connect at ${LOCAL_URL}: ${err.message}` };
+    return { error: `Cannot reach Lovense at ${LOCAL_URL}: ${err.message}` };
   }
 }
 
@@ -54,7 +60,7 @@ async function lovenseCommand(body) {
     });
     return await res.json();
   } catch (err) {
-    return { error: `Cannot reach Lovense Connect at ${LOCAL_URL}: ${err.message}` };
+    return { error: `Cannot reach Lovense at ${LOCAL_URL}: ${err.message}` };
   }
 }
 
@@ -158,15 +164,16 @@ function createServer() {
 
   server.tool(
     'pair',
-    'Instructions for pairing a toy. Lovense Connect app handles pairing directly.',
+    'Instructions for pairing a toy. Lovense Remote app handles pairing.',
     {},
     async () => wrap({
       instructions: [
-        '1. Install the Lovense Connect app on your phone (NOT Lovense Remote)',
+        '1. Install the Lovense Remote app on your phone',
         '2. Open the app and enable Bluetooth',
         '3. Turn on your toy — it should appear in the app',
         '4. Tap the toy to pair it via Bluetooth',
-        '5. Once paired, run the "status" tool to verify the connection'
+        '5. Enable Game Mode in the app (this starts the local API)',
+        '6. Once paired, run the "status" tool to verify the connection'
       ],
       note: 'Make sure your phone and PC are on the same WiFi network.'
     })
@@ -288,12 +295,12 @@ async function startHttp() {
 
     const server = createServer();
     await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
 
+    // Session ID is generated during handleRequest, so store AFTER
     if (transport.sessionId) {
       transports[transport.sessionId] = transport;
     }
-
-    await transport.handleRequest(req, res, req.body);
   });
 
   app.get(mcpPath, async (req, res) => {
@@ -322,8 +329,8 @@ async function startHttp() {
       console.log(`  WARNING: No MCP_SECRET set. Anyone with the URL can control your toy.`);
     }
     console.log(`\nTo expose via tunnel:`);
-    console.log(`  cloudflared tunnel --url http://localhost:${PORT}`);
-    console.log(`Then add as custom connector: <tunnel-url>${mcpPath}`);
+    console.log(`  ngrok http ${PORT}`);
+    console.log(`Then add as custom connector: <ngrok-url>${mcpPath}`);
   });
 }
 
