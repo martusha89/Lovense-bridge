@@ -6,6 +6,8 @@ Your AI reads the moment. It decides the intensity, the rhythm, the pace. These 
 
 > **Security-hardened fork** of [amarisaster/Lovense-Cloud-MCP](https://github.com/amarisaster/Lovense-Cloud-MCP). See [SECURITY.md](SECURITY.md).
 
+> 🆕 **Never used a terminal before?** Start with the [Beginner's Guide](BEGINNERS-GUIDE.md) — it explains every single click.
+
 ---
 
 ## How It Works
@@ -345,10 +347,11 @@ This controls intimate hardware. Read [SECURITY.md](SECURITY.md).
 ## Project Structure
 
 ```
-bridge.js       — MCP server (stdio + HTTP modes)
-launch.js       — One-command launcher (bridge + ngrok tunnel)
-.env            — Your config (not committed to git)
-src/index.ts    — Cloud Worker path (Standard accounts only)
+bridge.js           — MCP server (stdio + HTTP modes)
+launch.js           — One-command launcher (bridge + ngrok tunnel)
+BEGINNERS-GUIDE.md  — Complete beginner walkthrough (zero assumptions)
+.env                — Your config (not committed to git)
+src/index.ts        — Cloud Worker path (Standard accounts only)
 ```
 
 ---
